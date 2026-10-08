@@ -68,14 +68,20 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 .big-btn:active{transform:scale(.95)}
 .big-btn.alt{background:var(--card);color:var(--ink)}
 .seg{display:flex;background:var(--card);border-radius:999px;padding:4px;box-shadow:0 3px 0 rgba(59,51,85,.08)}
-.seg button{padding:.5em 1.1em;border-radius:999px;font-weight:700;font-size:clamp(14px,2vh,20px);color:var(--muted)}
+.seg button{white-space:nowrap;padding:.5em 1.1em;border-radius:999px;font-weight:700;font-size:clamp(14px,2vh,20px);color:var(--muted)}
 .seg button.on{background:var(--ink);color:#fff}
+#bar,#toast,.modal-box{zoom:var(--z,1)}
+.stepper{display:flex;align-items:center;gap:4px;background:var(--card);border-radius:999px;padding:4px;box-shadow:0 3px 0 rgba(59,51,85,.08)}
+.stepper button{width:2.4em;height:2.4em;border-radius:50%;background:var(--bg);font-weight:800;font-size:clamp(16px,2.2vh,22px)}
+.stepper button:disabled{opacity:.35}
+.stepper span{min-width:4em;text-align:center;font-weight:800;font-size:clamp(16px,2.2vh,22px)}
+.settings{display:flex;flex-direction:column;gap:clamp(10px,1.6vh,16px);align-items:center}
 .small-link{color:var(--muted);text-decoration:underline;font-size:clamp(13px,1.8vh,18px)}
 .lbl{color:var(--muted);font-weight:700;font-size:clamp(14px,2vh,20px)}
 
 .modal{position:fixed;inset:0;background:rgba(59,51,85,.35);display:grid;place-items:center;padding:16px}
 .modal-box{background:var(--card);border-radius:36px;padding:clamp(22px,4vh,48px) clamp(22px,4vw,64px);text-align:center;
-  display:flex;flex-direction:column;align-items:center;gap:clamp(10px,2vh,22px);max-width:min(92vw,720px);
+  display:flex;flex-direction:column;align-items:center;gap:clamp(10px,2vh,22px);max-width:min(94vw,900px);
   box-shadow:0 10px 0 rgba(59,51,85,.12);animation:pop .35s ease}
 @keyframes pop{0%{transform:scale(.7);opacity:0}100%{transform:scale(1);opacity:1}}
 .modal-box h2{font-size:clamp(28px,5.5vh,60px)}
@@ -107,6 +113,9 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
     <button class="icon-btn" id="btn-next" aria-label="Paraula següent">
       <svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
     </button>
+    <button class="icon-btn" id="btn-size" aria-label="Mida del joc">
+      <svg viewBox="0 0 24 24"><path d="M4 7h9M19 7h1M4 17h3M13 17h7"/><circle cx="16" cy="7" r="2.6"/><circle cx="10" cy="17" r="2.6"/></svg>
+    </button>
   </div>
   <div id="stage">
     <canvas id="cv"></canvas>
@@ -122,6 +131,7 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
   <div class="row">
     <button class="big-btn" id="btn-continue">Continuar</button>
   </div>
+  <div id="menu-settings"></div>
   <div class="row">
     <span class="lbl">Camí:</span>
     <div class="seg" id="diff">
@@ -288,10 +298,32 @@ function tracePath(ctx, st, from, to) {
    3. ESTAT I PERSISTÈNCIA
    ===================================================================== */
 const STORE_KEY = 'lletraLligada.v1';
-let save = { best: {}, pos: { lv: 0, i: 0 }, diff: 'normal' };
+let save = { best: {}, pos: { lv: 0, i: 0 }, diff: 'normal', screen: null, zoom: 100 };
 try { const raw = localStorage.getItem(STORE_KEY); if (raw) save = Object.assign(save, JSON.parse(raw)); } catch (e) {}
 function persist() { try { localStorage.setItem(STORE_KEY, JSON.stringify(save)); } catch (e) {} }
 const DIFF_K = { easy: 80, normal: 60, hard: 42 };
+
+/* Tipus de pantalla: polzades de referència i mides físiques a 100%.
+   xh = alçada de la lletra sense bucles (cm), pic = alçada de la imatge (cm).
+   A la pissarra, cada lletra ocupa aproximadament una mà. */
+const SCREENS = {
+  pc:     { name: 'Ordinador',        inch: 22,   xh: 4,  pic: 6 },
+  tablet: { name: 'Tauleta',          inch: 10.5, xh: 3,  pic: 4 },
+  board:  { name: 'Pissarra digital', inch: 75,   xh: 13, pic: 24 },
+};
+const ZOOM_MIN = 50, ZOOM_MAX = 150, ZOOM_STEP = 10;
+if (!SCREENS[save.screen]) {
+  let coarse = false;
+  try { coarse = matchMedia('(pointer: coarse)').matches; } catch (e) {}
+  save.screen = coarse && Math.min(screen.width, screen.height) <= 1000 ? 'tablet' : 'pc';
+}
+save.zoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round((+save.zoom || 100) / ZOOM_STEP) * ZOOM_STEP));
+const zoomK = () => save.zoom / 100;
+// Píxels CSS per centímetre, a partir de les polzades de la pantalla triada
+function pxPerCm() {
+  const diag = Math.hypot(screen.width || window.innerWidth, screen.height || window.innerHeight);
+  return diag / (SCREENS[save.screen].inch * 2.54);
+}
 
 const $ = s => document.querySelector(s);
 const cv = $('#cv'), ctx = cv.getContext('2d');
@@ -313,7 +345,7 @@ function resize() {
   G.dpr = Math.min(window.devicePixelRatio || 1, 2);
   G.W = r.width; G.H = r.height;
   cv.width = Math.round(G.W * G.dpr); cv.height = Math.round(G.H * G.dpr);
-  G.picH = Math.max(70, Math.min(G.H * 0.25, 260));
+  G.picH = Math.max(50, Math.min(G.H * 0.28, SCREENS[save.screen].pic * pxPerCm() * zoomK()));
   pic.style.height = G.picH + 'px';
   pic.querySelector('span').style.fontSize = (G.picH * 0.78) + 'px';
   if (G.model) layoutModel();
@@ -327,7 +359,8 @@ function layoutModel() {
   const vSpan = V_TOP - V_BOT;
   const uW = (G.W - 2 * margin) / spanX;
   const uH = (areaH * 0.94) / vSpan;
-  const u = Math.max(0.08, Math.min(uW, uH));
+  const uT = SCREENS[save.screen].xh * pxPerCm() * zoomK() / XH;  // mida física desitjada
+  const u = Math.max(0.08, Math.min(uW, uH, uT));
   G.u = u;
   const ox = (G.W - (m.maxX - m.minX) * u) / 2 - m.minX * u;
   const oy = areaTop + (areaH - vSpan * u) / 2 + V_TOP * u;
@@ -708,6 +741,7 @@ function buildMenu() {
     box.appendChild(c);
   });
   document.querySelectorAll('#diff button').forEach(b => b.classList.toggle('on', b.dataset.d === save.diff));
+  const ms = $('#menu-settings'); ms.innerHTML = ''; ms.appendChild(settingsControls());
   drawTitle();
 }
 
@@ -749,6 +783,43 @@ $('#btn-reset').onclick = () => {
   modal('<h2>Esborrar el progrés?</h2><p>Es perdran totes les estrelles guardades en aquest dispositiu.</p>',
     [['Sí, esborra', () => { save.best = {}; save.pos = { lv: 0, i: 0 }; persist(); buildMenu(); }], ['No', () => {}, true]]);
 };
+
+/* Controls de mida (menú i finestra de configuració del joc) */
+function applySettings() {
+  persist();
+  document.documentElement.style.setProperty('--z', zoomK());
+  if (!$('#game').classList.contains('hidden')) resize(); else drawTitle();
+}
+function settingsControls() {
+  const box = document.createElement('div'); box.className = 'settings';
+  const r1 = document.createElement('div'); r1.className = 'row';
+  r1.innerHTML = '<span class="lbl">Pantalla:</span>';
+  const seg = document.createElement('div'); seg.className = 'seg';
+  for (const [k, sc] of Object.entries(SCREENS)) {
+    const b = document.createElement('button');
+    b.textContent = `${sc.name} (${String(sc.inch).replace('.', ',')}")`;
+    b.classList.toggle('on', save.screen === k);
+    b.onclick = () => { save.screen = k; applySettings(); box.replaceWith(settingsControls()); };
+    seg.appendChild(b);
+  }
+  r1.appendChild(seg);
+  const r2 = document.createElement('div'); r2.className = 'row';
+  r2.innerHTML = '<span class="lbl">Mida:</span>';
+  const st = document.createElement('div'); st.className = 'stepper';
+  const minus = document.createElement('button'), plus = document.createElement('button'), val = document.createElement('span');
+  minus.textContent = '−'; plus.textContent = '+'; minus.setAttribute('aria-label', 'Més petit'); plus.setAttribute('aria-label', 'Més gran');
+  const upd = () => { val.textContent = save.zoom + '%'; minus.disabled = save.zoom <= ZOOM_MIN; plus.disabled = save.zoom >= ZOOM_MAX; };
+  minus.onclick = () => { save.zoom = Math.max(ZOOM_MIN, save.zoom - ZOOM_STEP); upd(); applySettings(); };
+  plus.onclick = () => { save.zoom = Math.min(ZOOM_MAX, save.zoom + ZOOM_STEP); upd(); applySettings(); };
+  upd(); st.append(minus, val, plus); r2.appendChild(st);
+  box.append(r1, r2);
+  return box;
+}
+$('#btn-size').onclick = () => {
+  modal('<h2>Mida del joc</h2><p>100% és la mida recomanada per a cada pantalla.</p>', [['Fet', () => {}]]);
+  const box = $('#modal-box'); box.insertBefore(settingsControls(), box.lastChild);
+};
+document.documentElement.style.setProperty('--z', zoomK());
 
 window.addEventListener('resize', () => { if (!$('#game').classList.contains('hidden')) resize(); else drawTitle(); });
 document.addEventListener('contextmenu', e => e.preventDefault());
