@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Lletra lligada</title>
+<style>
+:root{
+  --bg:#FFF8EE; --ink:#3B3355; --muted:#8A829E; --card:#FFFFFF; --line:#EFE6D6;
+  --ok:#2FBF71; --bad:#FF5A5F;
+  --lv1:#FF6B6B; --lv2:#FF9F1C; --lv3:#2EC4B6; --lv4:#4D96FF; --lv5:#9B5DE5;
+  --lv:#FF6B6B;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);color:var(--ink);
+  font-family:"Trebuchet MS","Segoe UI",system-ui,-apple-system,Roboto,sans-serif;
+  overflow:hidden;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;
+  -webkit-tap-highlight-color:transparent}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+.hidden{display:none !important}
+
+/* ---------- Joc ---------- */
+#game{position:fixed;inset:0;display:flex;flex-direction:column}
+#bar{flex:0 0 auto;height:clamp(60px,9vh,96px);display:flex;align-items:center;gap:clamp(8px,1.4vw,20px);padding:0 clamp(10px,2vw,28px)}
+.icon-btn{width:clamp(48px,6.5vh,72px);height:clamp(48px,6.5vh,72px);border-radius:50%;background:var(--card);
+  display:grid;place-items:center;box-shadow:0 3px 0 rgba(59,51,85,.12);transition:transform .1s}
+.icon-btn:active{transform:scale(.92)}
+.icon-btn svg{width:55%;height:55%;stroke:var(--ink);fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+#lvl-pill{background:var(--lv);color:#fff;font-weight:700;border-radius:999px;
+  padding:.45em 1.1em;font-size:clamp(16px,2.4vh,26px);white-space:nowrap}
+#dots{display:flex;gap:clamp(6px,1vw,12px);flex:1;justify-content:center}
+.dot{width:clamp(16px,2.4vh,26px);height:clamp(16px,2.4vh,26px);border-radius:50%;background:var(--line);
+  border:3px solid transparent;transition:background .2s}
+.dot.done{background:var(--lv)}
+.dot.cur{border-color:var(--ink)}
+#stage{position:relative;flex:1;min-height:0}
+#cv{position:absolute;inset:0;width:100%;height:100%;touch-action:none;display:block}
+#pic{position:absolute;left:50%;top:0;transform:translateX(-50%);pointer-events:none;
+  display:grid;place-items:center;line-height:1;
+  font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji","Twemoji Mozilla",sans-serif}
+#pic span{display:block;filter:drop-shadow(0 6px 0 rgba(59,51,85,.08))}
+#pic.bounce span{animation:bounce .9s ease}
+@keyframes bounce{0%{transform:scale(1)}30%{transform:scale(1.25) rotate(-6deg)}60%{transform:scale(.95) rotate(4deg)}100%{transform:scale(1)}}
+#toast{position:absolute;left:50%;bottom:4%;transform:translateX(-50%);background:var(--card);
+  padding:.6em 1.2em;border-radius:999px;font-size:clamp(16px,2.6vh,28px);font-weight:700;
+  box-shadow:0 4px 0 rgba(59,51,85,.12);opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap}
+#toast.show{opacity:1}
+
+/* ---------- Pantalles superposades ---------- */
+.screen{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:clamp(14px,3vh,36px);padding:clamp(16px,3vw,40px);overflow:auto}
+#title-cv{width:min(90vw,820px);height:clamp(110px,20vh,210px)}
+.levels{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:clamp(10px,1.6vw,24px);width:min(96vw,1400px)}
+.lv-card{background:var(--card);border-radius:28px;padding:clamp(14px,2.2vh,28px) 10px;display:flex;flex-direction:column;
+  align-items:center;gap:clamp(6px,1.2vh,14px);box-shadow:0 6px 0 rgba(59,51,85,.10);transition:transform .12s}
+.lv-card:active{transform:scale(.96)}
+.lv-num{width:clamp(56px,9vh,96px);height:clamp(56px,9vh,96px);border-radius:50%;color:#fff;font-weight:800;
+  font-size:clamp(28px,5vh,52px);display:grid;place-items:center}
+.lv-name{font-weight:700;font-size:clamp(16px,2.4vh,26px)}
+.lv-sub{color:var(--muted);font-size:clamp(13px,1.9vh,20px)}
+.lv-emo{font-size:clamp(18px,3vh,34px);letter-spacing:2px;text-align:center;
+  font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif}
+.lv-prog{display:flex;gap:5px}
+.lv-prog i{width:12px;height:12px;border-radius:50%;background:var(--line)}
+.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap;justify-content:center}
+.big-btn{background:var(--ok);color:#fff;font-weight:800;font-size:clamp(20px,3.4vh,36px);
+  padding:.55em 1.6em;border-radius:999px;box-shadow:0 6px 0 rgba(0,0,0,.12);transition:transform .1s}
+.big-btn:active{transform:scale(.95)}
+.big-btn.alt{background:var(--card);color:var(--ink)}
+.seg{display:flex;background:var(--card);border-radius:999px;padding:4px;box-shadow:0 3px 0 rgba(59,51,85,.08)}
+.seg button{padding:.5em 1.1em;border-radius:999px;font-weight:700;font-size:clamp(14px,2vh,20px);color:var(--muted)}
+.seg button.on{background:var(--ink);color:#fff}
+.small-link{color:var(--muted);text-decoration:underline;font-size:clamp(13px,1.8vh,18px)}
+.lbl{color:var(--muted);font-weight:700;font-size:clamp(14px,2vh,20px)}
+
+.modal{position:fixed;inset:0;background:rgba(59,51,85,.35);display:grid;place-items:center;padding:16px}
+.modal-box{background:var(--card);border-radius:36px;padding:clamp(22px,4vh,48px) clamp(22px,4vw,64px);text-align:center;
+  display:flex;flex-direction:column;align-items:center;gap:clamp(10px,2vh,22px);max-width:min(92vw,720px);
+  box-shadow:0 10px 0 rgba(59,51,85,.12);animation:pop .35s ease}
+@keyframes pop{0%{transform:scale(.7);opacity:0}100%{transform:scale(1);opacity:1}}
+.modal-box h2{font-size:clamp(28px,5.5vh,60px)}
+.modal-box p{font-size:clamp(18px,3vh,30px);color:var(--muted)}
+.modal-emo{font-size:clamp(60px,12vh,130px);line-height:1;font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif}
+.stars{font-size:clamp(36px,7vh,76px);letter-spacing:.1em}
+.stars .off{opacity:.18}
+
+@media (max-width:820px){ .levels{grid-template-columns:repeat(3,minmax(0,1fr))} }
+@media (max-width:520px){ .levels{grid-template-columns:repeat(2,minmax(0,1fr))} }
+</style>
+</head>
+<body>
+
+<!-- Pantalla de joc -->
+<div id="game" class="hidden">
+  <div id="bar">
+    <button class="icon-btn" id="btn-home" aria-label="Menú">
+      <svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg>
+    </button>
+    <div id="lvl-pill">Nivell 1</div>
+    <div id="dots"></div>
+    <button class="icon-btn" id="btn-prev" aria-label="Paraula anterior">
+      <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>
+    </button>
+    <button class="icon-btn" id="btn-redo" aria-label="Tornar a començar">
+      <svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v5h5"/></svg>
+    </button>
+    <button class="icon-btn" id="btn-next" aria-label="Paraula següent">
+      <svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg>
+    </button>
+  </div>
+  <div id="stage">
+    <canvas id="cv"></canvas>
+    <div id="pic"><span></span></div>
+    <div id="toast"></div>
+  </div>
+</div>
+
+<!-- Menú -->
+<div id="menu" class="screen">
+  <canvas id="title-cv"></canvas>
+  <div class="levels" id="levels"></div>
+  <div class="row">
+    <button class="big-btn" id="btn-continue">Continuar</button>
+  </div>
+  <div class="row">
+    <span class="lbl">Camí:</span>
+    <div class="seg" id="diff">
+      <button data-d="easy">Ample</button>
+      <button data-d="normal">Normal</button>
+      <button data-d="hard">Estret</button>
+    </div>
+    <button class="small-link" id="btn-reset">Esborrar progrés</button>
+  </div>
+</div>
+
+<!-- Finestra modal genèrica -->
+<div id="modal" class="modal hidden"><div class="modal-box" id="modal-box"></div></div>
+
+<script>
+(() => {
+'use strict';
+
+/* =====================================================================
+   1. PARAULES (5 nivells x 6 paraules, ordenades per síl·labes)
+   ===================================================================== */
+const LEVELS = [
+  { sub: '1 síl·laba',   words: [['sol','☀️'],['gat','🐱'],['tren','🚂'],['flor','🌸'],['braç','💪'],['drac','🐉']] },
+  { sub: '2 síl·labes',  words: [['kiwi','🥝'],['zebra','🦓'],['pinya','🍍'],['préssec','🍑'],['pingüí','🐧'],['gofre','🧇']] },
+  { sub: '3 síl·labes',  words: [['granota','🐸'],['taronja','🍊'],['planeta','🪐'],['guitarra','🎸'],['goril·la','🦍'],['tomàquet','🍅']] },
+  { sub: '4 síl·labes',  words: [['papallona','🦋'],['hipopòtam','🦛'],['bicicleta','🚲'],['dinosaure','🦕'],['helicòpter','🚁'],['xocolata','🍫']] },
+  { sub: '5 síl·labes',  words: [['televisió','📺'],['ambulància','🚑'],['tiranosaure','🦖'],['motocicleta','🏍️'],['extraterrestre','👽'],['biblioteca','📚']] },
+];
+const LV_COLORS = ['#FF6B6B','#FF9F1C','#2EC4B6','#4D96FF','#9B5DE5'];
+
+/* =====================================================================
+   2. LLETRES: traç central de la font escolar (lletra lligada).
+   Unitats de la font: línia base y=0, alçada x = 337, ascendents 670,
+   descendents -337. Eix Y cap amunt. Per a cada lletra:
+     w = amplada d'avanç, b = traços del cos (x,y,x,y...),
+     p = enllaç previ (lletres rodones quan no són la primera),
+     x = traços extra: d = punt, l = línia (accents, creu de la t...).
+   ===================================================================== */
+const GL = {"a":{"w":481,"b":[[288,269,255,282,235,295,218,302,195,307,159,309,124,303,101,294,77,277,56,255,40,230,27,196,23,179,21,155,24,119,34,91,51,66,73,46,100,33,124,28,148,25,177,28,195,32,222,44,260,74,288,86,297,93,303,135,303,219,297,261,303,278,303,302,303,279,297,262,303,214,303,136,298,94,306,78,314,49,321,39,330,32,353,26,371,26,394,33,409,43,421,57,434,77,479,154,501,197]],"x":[],"p":[20,198,51,249,71,272,95,290,111,299,128,304,164,310,206,305,224,300,255,282,288,269]},"b":{"w":496,"b":[[20,198,51,227,71,238,79,247,88,288,90,336,100,377,103,381,130,394,140,401,171,460,184,493,190,517,194,552,190,594,185,612,179,622,169,629,152,633,129,629,119,622,108,607,96,580,89,533,89,400,90,394,98,379,98,373,89,332,88,290,80,249,80,243,88,227,89,161,94,119,105,91,118,71,140,50,165,35,194,28,212,26,230,27,260,33,286,47,309,66,330,95,338,118,344,160,339,183,334,231,327,254,311,286,290,307,280,313,268,316,256,318,244,316,234,311,231,306,227,288,232,259,239,242,263,216,287,197,333,183,338,180,341,175,344,157,347,152,370,148,424,143,460,147,487,160,516,197]],"x":[]},"c":{"w":364,"b":[[246,262,230,270,214,288,200,298,183,304,153,308,123,304,95,294,75,281,51,255,33,223,25,194,21,159,25,123,35,95,48,74,69,53,89,40,123,29,165,25,213,32,236,39,257,49,288,69,318,97,354,146,384,197]],"x":[],"p":[20,198,42,241,60,266,87,290,115,302,151,308,187,303,204,296,214,288,230,270,246,262]},"d":{"w":482,"b":[[288,270,261,280,225,302,202,309,172,312,154,311,130,307,113,301,97,292,77,279,64,266,50,247,35,221,26,199,20,157,21,139,24,115,32,93,41,77,53,63,71,48,92,36,109,30,151,25,181,28,198,32,220,42,263,75,290,87,299,95,303,119,305,149,305,215,299,263,305,280,305,635,305,281,300,264,300,258,305,210,305,150,300,96,307,80,315,51,322,41,331,33,354,27,366,26,384,29,395,33,405,39,418,52,429,66,480,154,502,197]],"x":[],"p":[20,198,51,250,71,273,100,294,117,302,134,308,152,311,170,312,212,307,235,297,260,281,288,270]},"e":{"w":388,"b":[[20,198,58,169,136,164,171,168,195,174,211,182,226,192,234,200,240,211,245,240,240,264,235,275,227,284,218,291,207,297,190,302,155,307,119,303,91,291,67,273,48,251,33,224,25,177,19,160,18,148,21,119,32,91,50,67,78,44,94,36,112,31,147,26,189,28,224,36,264,50,295,68,328,93,358,123,384,156,408,197]],"x":[]},"f":{"w":330,"b":[[20,198,47,238,73,251,81,260,86,283,87,325,93,361,100,370,126,384,131,388,163,445,178,478,190,512,197,541,199,577,193,612,185,628,181,632,170,638,153,641,141,640,124,634,108,616,95,589,87,554,81,494,80,410,81,386,83,381,93,366,93,360,88,331,87,289,81,259,83,254,95,240,97,234,134,10,137,-2,138,-32,136,-44,140,-61,143,-127,140,-187,136,-223,127,-257,116,-279,105,-293,95,-299,72,-305,54,-302,48,-300,39,-292,29,-271,23,-241,25,-211,32,-176,44,-142,60,-110,79,-79,90,-65,95,-62,129,-50,133,-46,138,-35,137,1,183,13,254,68,283,98,309,131,330,160,350,197]],"x":[]},"g":{"w":493,"b":[[288,270,260,280,229,298,206,305,170,308,140,305,123,300,106,293,86,281,72,269,51,248,32,217,26,200,21,177,19,159,21,141,24,117,29,100,44,74,57,61,70,49,86,39,102,33,144,27,180,32,208,41,230,52,255,69,288,82,297,90,302,119,304,143,304,221,299,263,304,280,304,302,304,278,299,261,304,219,304,141,298,88,304,71,304,17,306,5,303,-31,299,-42,303,-60,303,-174,299,-228,293,-251,286,-268,277,-283,265,-296,254,-302,236,-305,213,-300,203,-293,194,-278,187,-242,188,-224,190,-200,197,-171,207,-143,229,-100,253,-65,263,-59,291,-50,296,-46,302,-35,305,-6,310,5,315,8,355,20,403,56,434,85,458,112,487,150,513,197]],"x":[],"p":[20,198,45,240,73,271,104,292,132,303,150,306,174,308,211,304,234,296,260,280,288,270]},"h":{"w":489,"b":[[20,198,52,225,69,231,73,235,84,282,85,330,92,365,95,370,99,374,126,387,135,395,170,458,189,509,196,538,199,568,198,585,194,609,187,626,179,634,168,639,150,641,127,635,117,628,110,619,100,604,93,587,87,558,84,522,84,390,93,368,84,327,84,285,75,238,79,233,91,232,94,228,86,132,84,33,87,147,91,195,96,231,105,239,131,253,163,289,189,304,206,309,224,311,242,310,260,307,281,296,295,284,306,270,315,248,319,218,320,110,325,68,328,57,333,46,341,37,352,31,375,27,387,28,405,32,419,42,440,71,485,149,509,197]],"x":[]},"i":{"w":250,"b":[[20,198,52,225,69,231,72,236,79,271,83,301,73,234,81,218,82,212,82,104,86,74,91,57,102,42,117,33,141,29,159,31,170,35,180,42,188,50,249,154,270,197]],"x":[{"d":[85,502]}]},"j":{"w":272,"b":[[20,198,52,225,69,231,73,236,80,271,83,301,74,235,82,219,83,213,83,20,85,2,82,-9,82,-27,78,-45,82,-62,82,-177,76,-237,67,-265,50,-290,36,-301,12,-305,-11,-299,-23,-286,-29,-269,-34,-233,-31,-204,-25,-174,-15,-146,4,-108,23,-77,34,-63,68,-51,77,-44,81,-33,85,3,88,8,117,14,134,20,182,56,213,85,237,112,262,145,292,197]],"x":[{"d":[85,502]}]},"k":{"w":489,"b":[[20,198,52,225,68,233,75,242,83,277,84,325,93,366,101,374,129,388,137,396,170,460,191,516,196,540,199,569,194,611,189,622,182,632,172,638,155,642,131,638,121,632,113,624,103,609,95,592,87,557,84,521,84,389,85,383,93,367,85,326,83,278,76,243,76,237,80,232,91,228,95,223,95,217,87,128,85,34,87,130,96,220,103,229,134,247,153,271,165,284,185,297,202,305,225,310,249,312,279,308,301,299,314,286,322,270,325,253,323,229,318,212,309,196,297,183,268,161,258,146,254,143,230,140,172,140,250,141,256,140,287,104,308,67,318,53,331,40,346,30,369,25,381,25,405,31,419,42,433,61,458,102,509,197]],"x":[]},"l":{"w":278,"b":[[20,198,52,225,68,232,72,236,82,277,84,319,94,366,102,374,129,388,138,396,171,461,190,511,197,540,199,564,198,588,194,612,189,623,182,633,171,639,154,642,130,638,120,631,112,623,102,607,95,591,87,556,84,526,84,387,93,365,83,318,82,276,74,241,74,235,83,219,83,135,86,99,92,75,99,59,106,49,120,38,131,33,161,29,184,33,201,39,215,51,225,66,276,154,298,197]],"x":[]},"m":{"w":830,"b":[[20,198,44,232,75,283,92,300,103,305,127,308,150,303,165,293,174,278,180,255,188,239,183,191,183,35,183,192,187,228,191,239,196,243,229,257,256,281,288,298,305,303,329,307,352,304,370,299,385,290,398,278,405,268,424,231,419,183,419,33,419,183,425,230,433,238,459,252,490,281,515,297,532,303,556,307,568,307,591,303,608,297,626,281,641,262,650,240,654,216,657,186,659,90,665,55,671,45,685,34,697,30,720,27,744,33,754,39,766,52,828,154,850,197]],"x":[]},"n":{"w":611,"b":[[20,198,44,232,75,283,92,300,102,306,126,309,150,304,165,294,174,279,181,250,189,234,190,228,183,180,183,35,183,179,186,209,192,232,202,239,230,250,270,285,286,295,302,302,337,309,355,307,373,303,388,294,406,278,419,258,425,241,431,199,433,91,436,67,441,50,452,36,462,29,479,25,491,24,515,27,526,32,535,39,548,52,607,149,631,197]],"x":[]},"o":{"w":432,"b":[[177,292,164,304,152,307,117,300,90,287,66,268,46,246,33,226,22,198,19,180,16,150,20,120,27,97,39,76,56,59,80,41,101,30,119,26,149,22,173,25,196,30,218,41,237,55,253,72,263,88,274,116,287,180,282,222,275,245,265,261,255,267,244,270,232,271,226,269,217,262,214,244,217,220,223,203,234,189,244,182,278,172,282,167,284,155,288,151,359,143,395,147,406,151,422,160,452,197]],"x":[],"p":[20,198,46,245,70,272,95,290,122,302,152,307,164,304,177,292]},"p":{"w":497,"b":[[20,198,52,225,68,232,71,237,77,272,81,312,72,235,75,230,86,226,88,221,82,173,82,-302,82,176,87,218,93,228,125,243,170,283,185,293,201,300,225,305,243,305,267,301,288,290,302,278,313,265,322,249,327,232,332,184,332,94,338,58,346,43,355,35,366,30,384,27,396,27,413,31,424,37,432,45,499,159,517,197]],"x":[]},"q":{"w":457,"b":[[287,271,266,280,237,302,208,311,185,314,155,313,131,309,108,301,93,292,74,277,54,255,40,236,30,214,23,191,19,143,25,107,37,80,48,66,60,53,85,36,114,26,149,22,185,26,208,33,224,41,244,54,267,74,295,85,304,93,307,111,310,147,310,213,305,260,312,277,312,301,311,275,305,259,310,217,310,151,305,97,312,74,312,38,316,21,312,-27,312,-298,312,-27,316,21,319,27,323,30,352,40,362,45,406,87,439,129,455,154,477,197]],"x":[],"p":[20,198,42,240,69,273,83,285,103,298,130,309,166,314,190,314,214,310,237,302,265,280,287,271]},"r":{"w":427,"b":[[20,198,53,247,70,279,79,302,95,327,112,344,92,322,91,316,94,312,112,308,208,302,226,299,242,292,251,284,254,279,259,255,258,225,249,154,246,124,246,94,251,64,258,47,271,35,288,29,311,26,329,28,341,32,351,39,363,51,425,154,447,197]],"x":[]},"s":{"w":386,"b":[[20,198,47,238,81,294,89,303,104,312,130,298,187,254,205,238,220,219,229,203,235,186,241,144,232,79,228,61,223,51,202,39,179,31,162,27,131,26,102,28,84,33,68,40,49,55,36,59,47,56,67,41,88,31,130,26,160,27,178,30,201,38,228,51,275,61,286,66,320,90,355,123,385,161,406,197]],"x":[]},"t":{"w":297,"b":[[20,198,45,232,76,248,83,258,90,299,92,323,92,491,92,323,83,252,91,236,92,230,92,116,94,98,98,74,109,53,117,44,133,35,144,30,161,27,173,27,197,30,208,34,219,41,232,53,247,72,295,155,317,197]],"x":[{"l":[44,374,193,375]}]},"u":{"w":502,"b":[[20,198,52,225,68,232,71,237,82,302,72,235,81,219,82,213,83,129,87,99,93,82,102,67,115,54,129,43,140,37,175,31,211,36,227,43,243,53,266,72,283,89,316,103,321,107,324,112,331,166,331,300,331,168,324,108,332,92,336,68,339,57,349,41,364,32,393,27,417,31,427,37,436,46,500,154,522,197]],"x":[]},"v":{"w":571,"b":[[20,198,44,233,75,284,92,300,109,307,127,310,150,306,161,301,171,293,178,284,183,267,187,237,187,152,189,128,192,105,201,82,218,57,241,38,268,27,304,23,328,26,345,32,361,40,380,56,395,74,406,95,412,112,416,136,419,172,411,244,401,272,392,288,380,300,356,306,339,302,330,295,324,271,328,248,336,232,347,217,364,200,375,195,410,186,415,183,418,178,423,161,428,158,506,151,542,156,558,162,563,166,591,197]],"x":[]},"w":{"w":849,"b":[[20,198,77,282,98,303,114,311,132,314,156,311,172,304,181,296,188,287,194,263,197,240,197,168,201,120,204,102,213,80,223,65,236,52,261,35,289,26,325,22,360,27,382,36,402,50,426,76,445,91,447,97,447,301,447,96,450,90,469,77,486,60,499,48,520,36,543,29,567,25,585,25,614,30,636,40,655,55,670,73,680,88,690,116,697,170,688,241,682,264,667,290,654,302,630,306,613,301,606,292,601,269,605,245,613,229,624,215,642,199,688,186,693,182,696,177,698,166,701,160,706,158,778,152,814,155,836,163,869,197]],"x":[]},"x":{"w":577,"b":[[20,198,62,256,87,283,112,300,128,307,146,311,164,313,188,311,205,307,216,302,235,288,261,255,276,244,279,239,279,101,277,95,259,79,246,59,230,41,209,30,185,25,144,28,132,32,122,38,108,50,89,73,73,80],[473,264,463,270,448,288,429,303,406,310,376,312,352,307,337,298,319,281,302,257,282,243,280,237,279,207,279,98,282,93,301,78,318,53,337,38,347,32,365,27,407,24,431,27,448,31,481,46,510,68,530,90,573,155,597,197]],"x":[]},"y":{"w":519,"b":[[20,198,53,224,69,231,72,236,83,301,73,234,81,218,83,122,87,98,93,81,103,66,115,53,130,42,141,37,176,30,212,35,228,42,243,52,279,84,312,98,322,105,328,135,331,165,331,300,331,167,328,137,323,108,330,85,330,19,332,7,329,-29,325,-46,329,-64,329,-178,326,-220,318,-255,310,-271,300,-286,292,-295,281,-301,258,-305,235,-299,222,-286,217,-269,212,-233,216,-197,224,-162,238,-129,252,-102,268,-77,280,-63,319,-48,324,-44,328,-33,329,-9,332,3,335,8,352,11,381,20,424,53,455,81,487,117,516,155,539,197]],"x":[]},"z":{"w":469,"b":[[20,198,49,243,82,300,90,309,102,311,126,309,161,301,185,299,281,297,287,295,290,291,290,285,276,245,147,103,140,93,129,59,125,55,117,51,129,53,140,50,182,46,247,31,282,27,312,30,341,39,368,52,392,69,415,89,442,121,469,160,489,197]],"x":[]},"à":{"w":481,"b":[[288,269,255,282,235,295,218,302,195,307,159,309,124,303,101,294,77,277,56,255,40,230,27,196,23,179,21,155,24,119,34,91,51,66,73,46,100,33,124,28,148,25,177,28,195,32,222,44,260,74,288,86,297,93,303,135,303,219,297,261,303,278,303,302,303,279,297,262,303,214,303,136,298,94,306,78,314,49,321,39,330,32,353,26,371,26,394,33,409,43,421,57,434,77,479,154,501,197]],"x":[{"l":[134,512,305,427]}],"p":[20,198,51,249,71,272,95,290,111,299,128,304,164,310,206,305,224,300,255,282,288,269]},"è":{"w":388,"b":[[20,198,58,169,136,164,171,168,195,174,211,182,226,192,234,200,240,211,245,240,240,264,235,275,227,284,218,291,207,297,190,302,155,307,119,303,91,291,67,273,48,251,33,224,25,177,19,160,18,148,21,119,32,91,50,67,78,44,94,36,112,31,147,26,189,28,224,36,264,50,295,68,328,93,358,123,384,156,408,197]],"x":[{"l":[14,512,185,427]}]},"é":{"w":388,"b":[[20,198,58,169,136,164,171,168,195,174,211,182,226,192,234,200,240,211,245,240,240,264,235,275,227,284,218,291,207,297,190,302,155,307,119,303,91,291,67,273,48,251,33,224,25,177,19,160,18,148,21,119,32,91,50,67,78,44,94,36,112,31,147,26,189,28,224,36,264,50,295,68,328,93,358,123,384,156,408,197]],"x":[{"l":[288,512,114,426]}]},"í":{"w":250,"b":[[20,198,52,225,69,231,72,236,79,271,83,301,73,234,81,218,82,212,82,104,86,74,91,57,102,42,117,33,141,29,159,31,170,35,180,42,188,50,249,154,270,197]],"x":[{"l":[251,515,79,427]}]},"ï":{"w":250,"b":[[20,198,52,225,69,231,72,236,79,271,83,301,73,234,81,218,82,212,82,104,86,74,91,57,102,42,117,33,141,29,159,31,170,35,180,42,188,50,249,154,270,197]],"x":[{"d":[2,503]},{"d":[168,502]}]},"ò":{"w":432,"b":[[177,292,164,304,152,307,117,300,90,287,66,268,46,246,33,226,22,198,19,180,16,150,20,120,27,97,39,76,56,59,80,41,101,30,119,26,149,22,173,25,196,30,218,41,237,55,253,72,263,88,274,116,287,180,282,222,275,245,265,261,255,267,244,270,232,271,226,269,217,262,214,244,217,220,223,203,234,189,244,182,278,172,282,167,284,155,288,151,359,143,395,147,406,151,422,160,452,197]],"x":[{"l":[67,512,242,426]}],"p":[20,198,46,245,70,272,95,290,122,302,152,307,164,304,177,292]},"ó":{"w":432,"b":[[177,292,164,304,152,307,117,300,90,287,66,268,46,246,33,226,22,198,19,180,16,150,20,120,27,97,39,76,56,59,80,41,101,30,119,26,149,22,173,25,196,30,218,41,237,55,253,72,263,88,274,116,287,180,282,222,275,245,265,261,255,267,244,270,232,271,226,269,217,262,214,244,217,220,223,203,234,189,244,182,278,172,282,167,284,155,288,151,359,143,395,147,406,151,422,160,452,197]],"x":[{"l":[309,512,135,426]}],"p":[20,198,46,245,70,272,95,290,122,302,152,307,164,304,177,292]},"ú":{"w":502,"b":[[20,198,52,225,68,232,71,237,82,302,72,235,81,219,82,213,83,129,87,99,93,82,102,67,115,54,129,43,140,37,175,31,211,36,227,43,243,53,266,72,283,89,316,103,321,107,324,112,331,166,331,300,331,168,324,108,332,92,336,68,339,57,349,41,364,32,393,27,417,31,427,37,436,46,500,154,522,197]],"x":[{"l":[309,512,135,426]}]},"ü":{"w":502,"b":[[20,198,52,225,68,232,71,237,82,302,72,235,81,219,82,213,83,129,87,99,93,82,102,67,115,54,129,43,140,37,175,31,211,36,227,43,243,53,266,72,283,89,316,103,321,107,324,112,331,166,331,300,331,168,324,108,332,92,336,68,339,57,349,41,364,32,393,27,417,31,427,37,436,46,500,154,522,197]],"x":[{"d":[140,456]},{"d":[295,456]}]},"ç":{"w":364,"b":[[246,262,230,270,214,288,200,298,183,304,153,308,123,304,95,294,75,281,51,255,33,223,25,194,21,159,25,123,35,95,48,74,69,53,89,40,123,29,165,25,213,32,236,39,257,49,288,69,318,97,354,146,384,197]],"x":[{"l":[166,-61,169,-66,162,-115,152,-136,136,-158,136,-171]}],"p":[20,198,42,241,60,266,87,290,115,302,151,308,187,303,204,296,214,288,230,270,246,262]},"·":{"w":228,"d":[114,168]}};
+const XH = 337, ASC = 670, DESC = -337;
+const V_TOP = 720, V_BOT = -380;
+const STROKE_W = 57;   // gruix del traç de la font
+
+function pairs(a, dx) { const P = []; for (let i = 0; i < a.length; i += 2) P.push([a[i] + dx, a[i + 1]]); return P; }
+
+// Enllaç que passa per sota del punt volat de la l·l
+function dipPath(a, b) {
+  const P = [], c1 = [a[0] + (b[0] - a[0]) * 0.25, 10], c2 = [a[0] + (b[0] - a[0]) * 0.75, 10];
+  for (let k = 1; k <= 16; k++) {
+    const t = k / 16, u = 1 - t;
+    P.push([u*u*u*a[0] + 3*u*u*t*c1[0] + 3*u*t*t*c2[0] + t*t*t*b[0],
+            u*u*u*a[1] + 3*u*u*t*c1[1] + 3*u*t*t*c2[1] + t*t*t*b[1]]);
+  }
+  return P;
+}
+
+/* Construeix una paraula: traços del cos (normalment un de sol, continu)
+   + traços extra que es fan al final (punts, accents, creus...). */
+function buildWord(word) {
+  const body = [], extras = [];
+  let cur = null, X = 0, li = 0, dip = false;
+  const add = (pts, tag) => {
+    for (const p of pts) {
+      const L = cur.pts[cur.pts.length - 1];
+      if (L && Math.abs(L[0] - p[0]) < 0.5 && Math.abs(L[1] - p[1]) < 0.5) continue;
+      cur.pts.push(p); cur.tags.push(tag);
+    }
+  };
+  for (const ch of [...word.normalize('NFC')]) {
+    if (ch === '·') {
+      const d = GL['·'];
+      extras.push({ dot: [X + d.d[0], d.d[1]] });
+      X += d.w; dip = true; continue;
+    }
+    const g = GL[ch];
+    if (!g) throw new Error('Lletra sense definir: ' + ch);
+    g.b.forEach((raw, si) => {
+      let pts = pairs(raw, X);
+      if (si === 0 && cur) {
+        if (g.p) pts = pairs(g.p, X).concat(pts);
+        if (dip) add(dipPath(cur.pts[cur.pts.length - 1], pts[0]), li);
+        add(pts, li);
+      } else {
+        if (cur) body.push(cur);
+        cur = { pts: [], tags: [] };
+        add(pts, li);
+      }
+    });
+    for (const e of g.x) extras.push(e.d ? { dot: [X + e.d[0], e.d[1]] } : { line: pairs(e.l, X) });
+    X += g.w; li++; dip = false;
+  }
+  if (cur) body.push(cur);
+  return { body, extras, nLetters: li };
+}
+
+function densify(pts, tags, step) {
+  const xs = [], ys = [], tg = [];
+  for (let i = 0; i < pts.length; i++) {
+    if (i > 0) {
+      const [x0, y0] = pts[i - 1], [x1, y1] = pts[i];
+      const n = Math.ceil(Math.hypot(x1 - x0, y1 - y0) / step);
+      for (let k = 1; k < n; k++) { xs.push(x0 + (x1 - x0) * k / n); ys.push(y0 + (y1 - y0) * k / n); tg.push(tags[i]); }
+    }
+    xs.push(pts[i][0]); ys.push(pts[i][1]); tg.push(tags[i]);
+  }
+  return { xs, ys, tags: tg };
+}
+
+/* Model de paraula en unitats de font (independent de la pantalla) */
+function wordModel(word) {
+  const w = buildWord(word);
+  const strokes = w.body.map(b => ({ kind: 'main', u: densify(b.pts, b.tags, 5) }));
+  for (const e of w.extras) {
+    if (e.dot) strokes.push({ kind: 'dot', u: { xs: [e.dot[0]], ys: [e.dot[1]], tags: [0] } });
+    else strokes.push({ kind: 'extra', u: densify(e.line, e.line.map(() => 0), 5) });
+  }
+  let minX = Infinity, maxX = -Infinity;
+  for (const s of strokes) for (const v of s.u.xs) { if (v < minX) minX = v; if (v > maxX) maxX = v; }
+  return { word, strokes, minX, maxX, nLetters: w.nLetters };
+}
+
+/* Passa a píxels i calcula longituds acumulades */
+function layoutStroke(st, u, ox, oy) {
+  const n = st.u.xs.length;
+  const X = new Float32Array(n), Y = new Float32Array(n), T = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    X[i] = ox + st.u.xs[i] * u; Y[i] = oy - st.u.ys[i] * u;
+    T[i] = i ? T[i - 1] + Math.hypot(X[i] - X[i - 1], Y[i] - Y[i - 1]) : 0;
+  }
+  st.X = X; st.Y = Y; st.T = T; st.len = T[n - 1];
+  if (st.kind === 'main') { // inici de cada lletra (en longitud de camí)
+    const starts = [0], ends = [];
+    for (let i = 1; i < n; i++) if (st.u.tags[i] !== st.u.tags[i - 1]) starts.push(T[i - 1]);
+    for (let k = 1; k < starts.length; k++) ends.push(starts[k]);
+    ends.push(st.len);
+    st.letterStarts = starts; st.letterEnds = ends;
+  }
+}
+
+function idxAt(st, t) { // primer índex amb T >= t
+  let lo = 0, hi = st.T.length - 1;
+  if (t <= 0) return 0;
+  if (t >= st.T[hi]) return hi;
+  while (lo < hi) { const m = (lo + hi) >> 1; if (st.T[m] < t) lo = m + 1; else hi = m; }
+  return lo;
+}
+function pointAt(st, t) {
+  const i = idxAt(st, t);
+  if (i === 0 || st.T[i] === st.T[i - 1]) return [st.X[i], st.Y[i]];
+  const f = (t - st.T[i - 1]) / (st.T[i] - st.T[i - 1]);
+  return [st.X[i - 1] + (st.X[i] - st.X[i - 1]) * f, st.Y[i - 1] + (st.Y[i] - st.Y[i - 1]) * f];
+}
+function tracePath(ctx, st, from, to) {
+  if (st.kind === 'dot') return;
+  const i0 = idxAt(st, from), i1 = idxAt(st, to);
+  const p0 = pointAt(st, from);
+  ctx.moveTo(p0[0], p0[1]);
+  for (let i = i0; i < i1; i++) if (st.T[i] > from) ctx.lineTo(st.X[i], st.Y[i]);
+  const p1 = pointAt(st, to);
+  ctx.lineTo(p1[0], p1[1]);
+}
+
+/* =====================================================================
+   3. ESTAT I PERSISTÈNCIA
+   ===================================================================== */
+const STORE_KEY = 'lletraLligada.v1';
+let save = { best: {}, pos: { lv: 0, i: 0 }, diff: 'normal' };
+try { const raw = localStorage.getItem(STORE_KEY); if (raw) save = Object.assign(save, JSON.parse(raw)); } catch (e) {}
+function persist() { try { localStorage.setItem(STORE_KEY, JSON.stringify(save)); } catch (e) {} }
+const DIFF_K = { easy: 80, normal: 60, hard: 42 };
+
+const $ = s => document.querySelector(s);
+const cv = $('#cv'), ctx = cv.getContext('2d');
+const stage = $('#stage'), pic = $('#pic'), toast = $('#toast');
+
+const G = {
+  lv: 0, wi: 0, model: null, stroke: 0, s: 0,
+  drawing: false, blocked: false, pointer: null, last: null,
+  errors: 0, done: false, u: 10, tol: 20, ink: 8,
+  W: 0, H: 0, dpr: 1, picH: 0,
+  shakeT: -1, fails: [], confetti: [], hintT: -1, idleSince: 0, letterFlash: -1,
+};
+
+/* =====================================================================
+   4. DISPOSICIÓ A PANTALLA
+   ===================================================================== */
+function resize() {
+  const r = stage.getBoundingClientRect();
+  G.dpr = Math.min(window.devicePixelRatio || 1, 2);
+  G.W = r.width; G.H = r.height;
+  cv.width = Math.round(G.W * G.dpr); cv.height = Math.round(G.H * G.dpr);
+  G.picH = Math.max(70, Math.min(G.H * 0.25, 260));
+  pic.style.height = G.picH + 'px';
+  pic.querySelector('span').style.fontSize = (G.picH * 0.78) + 'px';
+  if (G.model) layoutModel();
+}
+
+function layoutModel() {
+  const m = G.model;
+  const areaTop = G.picH, areaH = G.H - G.picH;
+  const margin = Math.max(16, G.W * 0.05);
+  const spanX = m.maxX - m.minX + 60;
+  const vSpan = V_TOP - V_BOT;
+  const uW = (G.W - 2 * margin) / spanX;
+  const uH = (areaH * 0.94) / vSpan;
+  const u = Math.max(0.08, Math.min(uW, uH));
+  G.u = u;
+  const ox = (G.W - (m.maxX - m.minX) * u) / 2 - m.minX * u;
+  const oy = areaTop + (areaH - vSpan * u) / 2 + V_TOP * u;
+  G.ox = ox; G.oy = oy;
+  for (const st of m.strokes) layoutStroke(st, u, ox, oy);
+  G.tol = Math.max(18, Math.min(80, u * DIFF_K[save.diff]));
+  G.ink = Math.max(6, u * 60);
+}
+
+/* =====================================================================
+   5. CÀRREGA DE PARAULES I NAVEGACIÓ
+   ===================================================================== */
+function loadWord(lv, wi) {
+  G.lv = lv; G.wi = wi;
+  save.pos = { lv, i: wi }; persist();
+  const [word, emoji] = LEVELS[lv].words[wi];
+  G.model = wordModel(word);
+  G.stroke = 0; G.s = 0; G.drawing = false; G.blocked = false; G.errors = 0; G.done = false;
+  G.fails = []; G.confetti = []; G.idleSince = performance.now();
+  document.documentElement.style.setProperty('--lv', LV_COLORS[lv]);
+  $('#lvl-pill').textContent = 'Nivell ' + (lv + 1);
+  pic.querySelector('span').textContent = emoji;
+  pic.classList.remove('bounce');
+  renderDots();
+  resize();
+}
+function renderDots() {
+  const box = $('#dots'); box.innerHTML = '';
+  LEVELS[G.lv].words.forEach(([w], i) => {
+    const d = document.createElement('button');
+    d.className = 'dot' + (save.best[w] ? ' done' : '') + (i === G.wi ? ' cur' : '');
+    d.setAttribute('aria-label', 'Paraula ' + (i + 1));
+    d.onclick = () => loadWord(G.lv, i);
+    box.appendChild(d);
+  });
+}
+function nextWord() {
+  const words = LEVELS[G.lv].words;
+  if (G.wi + 1 < words.length) return loadWord(G.lv, G.wi + 1);
+  if (G.lv + 1 < LEVELS.length) return levelUp(G.lv + 1);
+  finishAll();
+}
+function prevWord() {
+  if (G.wi > 0) loadWord(G.lv, G.wi - 1);
+  else if (G.lv > 0) loadWord(G.lv - 1, LEVELS[G.lv - 1].words.length - 1);
+}
+
+/* =====================================================================
+   6. SEGUIMENT DEL DIT / RATOLÍ
+   ===================================================================== */
+const cur = () => G.model.strokes[G.stroke];
+
+function startTol() { return G.tol * 1.5; }
+
+function evPos(e) { const r = cv.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; }
+
+function tryStart(p) {
+  if (G.done || G.blocked) return;
+  const st = cur(), sp = pointAt(st, G.s);
+  if (Math.hypot(p[0] - sp[0], p[1] - sp[1]) <= startTol()) {
+    G.drawing = true; G.last = p; step(p);
+  } else {
+    G.hintT = performance.now();
+  }
+}
+
+/* Busca el punt del camí més proper dins una finestra [s-B, s+A] */
+function step(p) {
+  const st = cur();
+  if (st.kind === 'dot') { completeStroke(); return false; }
+  const A = Math.max(G.tol * 1.3, 22), B = G.tol * 3;
+  const i0 = idxAt(st, G.s - B), i1 = idxAt(st, G.s + A);
+  let best = Infinity, fwD = Infinity, fwT = G.s;
+  for (let i = i0; i <= i1; i++) {
+    const d = Math.hypot(st.X[i] - p[0], st.Y[i] - p[1]);
+    if (d < best) best = d;
+    if (st.T[i] >= G.s && d < fwD - 0.75) { fwD = d; fwT = st.T[i]; }
+  }
+  const sp = pointAt(st, G.s);
+  best = Math.min(best, Math.hypot(sp[0] - p[0], sp[1] - p[1]));
+  if (best > G.tol) { fail(p); return false; }
+  if (fwD <= G.tol && fwT > G.s) G.s = fwT;
+  if (G.s >= st.len - Math.min(G.tol * 0.5, 10)) { G.s = st.len; completeStroke(); return false; }
+  return true;
+}
+
+function feed(p) {
+  if (!G.drawing) return;
+  const q = G.last || p;
+  const dist = Math.hypot(p[0] - q[0], p[1] - q[1]);
+  const n = Math.max(1, Math.ceil(dist / Math.max(2, G.tol / 4)));
+  for (let k = 1; k <= n; k++) {
+    const t = k / n;
+    if (!step([q[0] + (p[0] - q[0]) * t, q[1] + (p[1] - q[1]) * t])) break;
+  }
+  G.last = p;
+}
+
+function letterRange() {
+  const st = cur();
+  if (st.kind !== 'main') return [0, st.len];
+  let k = 0;
+  const S = st.letterStarts;
+  for (let i = 0; i < S.length; i++) if (S[i] <= G.s + 0.01) k = i;
+  if (k < S.length - 1 && G.s >= st.letterEnds[k] - 0.01) k++;
+  return [S[k], st.letterEnds[k]];
+}
+
+function fail(p) {
+  const st = cur();
+  let from = 0;
+  if (st.kind === 'main') {
+    const S = st.letterStarts;
+    for (let i = 0; i < S.length; i++) if (S[i] <= G.s) from = S[i];
+  }
+  G.fails.push({ stroke: G.stroke, from, to: G.s, t: performance.now(), x: p[0], y: p[1] });
+  G.s = from; G.drawing = false; G.blocked = true; G.errors++;
+  G.shakeT = performance.now();
+  showToast('Ups! Torna-hi des del punt verd');
+  if (navigator.vibrate) try { navigator.vibrate(60); } catch (e) {}
+}
+
+function completeStroke() {
+  G.drawing = false; G.blocked = true;
+  G.stroke++; G.s = 0;
+  if (G.stroke >= G.model.strokes.length) { G.stroke = G.model.strokes.length - 1; G.s = cur().len; wordDone(); }
+}
+
+cv.addEventListener('pointerdown', e => {
+  if (G.pointer !== null || !G.model) return;
+  e.preventDefault();
+  G.pointer = e.pointerId; G.blocked = false;
+  try { cv.setPointerCapture(e.pointerId); } catch (_) {}
+  G.idleSince = performance.now();
+  tryStart(evPos(e));
+});
+cv.addEventListener('pointermove', e => {
+  if (e.pointerId !== G.pointer) return;
+  e.preventDefault();
+  G.idleSince = performance.now();
+  const list = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
+  for (const ev of (list.length ? list : [e])) {
+    const p = evPos(ev);
+    if (!G.drawing && !G.blocked && !G.done) {
+      const sp = pointAt(cur(), G.s);
+      if (Math.hypot(p[0] - sp[0], p[1] - sp[1]) <= G.tol) { G.drawing = true; G.last = p; }
+      continue;
+    }
+    feed(p);
+  }
+});
+function release(e) {
+  if (e.pointerId !== G.pointer) return;
+  G.pointer = null; G.drawing = false; G.blocked = false; G.last = null;
+  G.idleSince = performance.now();
+}
+cv.addEventListener('pointerup', release);
+cv.addEventListener('pointercancel', release);
+cv.addEventListener('lostpointercapture', release);
+
+/* =====================================================================
+   7. DIBUIX
+   ===================================================================== */
+function drawPauta(ctx) {
+  const u = G.u, oy = G.oy, x0 = Math.max(12, G.W * 0.03), x1 = G.W - x0;
+  ctx.fillStyle = 'rgba(77,150,255,0.07)';
+  ctx.fillRect(x0, oy - XH * u, x1 - x0, XH * u);
+  const line = (y, c, w, dash) => {
+    ctx.beginPath(); ctx.setLineDash(dash || []); ctx.strokeStyle = c; ctx.lineWidth = w;
+    ctx.moveTo(x0, y); ctx.lineTo(x1, y); ctx.stroke();
+  };
+  line(oy - ASC * u, 'rgba(59,51,85,0.10)', 2, [8, 8]);
+  line(oy - XH * u, 'rgba(77,150,255,0.45)', 2);
+  line(oy, 'rgba(59,51,85,0.45)', 3);
+  line(oy - DESC * u, 'rgba(59,51,85,0.10)', 2, [8, 8]);
+  ctx.setLineDash([]);
+}
+
+function strokeRange(st, from, to, color, width) {
+  ctx.beginPath(); tracePath(ctx, st, from, to);
+  ctx.strokeStyle = color; ctx.lineWidth = width; ctx.stroke();
+}
+function dotAt(x, y, r, color) { ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fillStyle = color; ctx.fill(); }
+
+function drawArrow(x, y, ang, size, color) {
+  ctx.save(); ctx.translate(x, y); ctx.rotate(ang);
+  ctx.beginPath(); ctx.moveTo(size, 0); ctx.lineTo(-size * 0.6, -size * 0.7); ctx.lineTo(-size * 0.25, 0); ctx.lineTo(-size * 0.6, size * 0.7); ctx.closePath();
+  ctx.fillStyle = color; ctx.fill(); ctx.restore();
+}
+
+function render(now) {
+  requestAnimationFrame(render);
+  if (!G.model || $('#game').classList.contains('hidden')) return;
+  const m = G.model, u = G.u;
+  ctx.setTransform(G.dpr, 0, 0, G.dpr, 0, 0);
+  ctx.clearRect(0, 0, G.W, G.H);
+  let shake = 0;
+  if (G.shakeT > 0) { const k = (now - G.shakeT) / 380; if (k < 1) shake = Math.sin(k * 30) * (1 - k) * 10; else G.shakeT = -1; }
+  ctx.translate(shake, 0);
+  drawPauta(ctx);
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  const lvColor = LV_COLORS[G.lv];
+
+  // Camí enfosquit (pista) + línia de punts al centre
+  const trackW = Math.max(u * STROKE_W * 1.2, Math.min(G.tol * 1.6, u * 120));
+  const ghostW = Math.max(4, u * STROKE_W);
+  for (const st of m.strokes) {
+    if (st.kind === 'dot') { dotAt(st.X[0], st.Y[0], trackW / 2, '#E8E1D4'); continue; }
+    strokeRange(st, 0, st.len, '#E8E1D4', trackW);
+  }
+  // Lletra actual destacada
+  if (!G.done) {
+    const st = cur();
+    if (st.kind === 'main') { const [a, b] = letterRange(); strokeRange(st, a, b, '#DCD1EC', trackW); }
+    else if (st.kind === 'extra') strokeRange(st, 0, st.len, '#DCD1EC', trackW);
+    else dotAt(st.X[0], st.Y[0], trackW / 2, '#DCD1EC');
+  }
+  // La paraula enfosquida, amb el gruix de la lletra de l'escola
+  for (const st of m.strokes) {
+    if (st.kind === 'dot') dotAt(st.X[0], st.Y[0], Math.max(4, u * 42), '#CFC5B4');
+    else strokeRange(st, 0, st.len, '#CFC5B4', ghostW);
+  }
+  ctx.setLineDash([0.1, Math.max(8, u * 28)]);
+  for (const st of m.strokes) { if (st.kind !== 'dot') strokeRange(st, 0, st.len, 'rgba(255,255,255,0.9)', Math.max(2.5, u * 12)); }
+  ctx.setLineDash([]);
+
+  // Errors que s'esvaeixen
+  G.fails = G.fails.filter(f => now - f.t < 700);
+  for (const f of G.fails) {
+    const a = 1 - (now - f.t) / 700;
+    ctx.globalAlpha = a;
+    if (f.to > f.from) strokeRange(m.strokes[f.stroke], f.from, f.to, '#FF5A5F', G.ink);
+    dotAt(f.x, f.y, G.tol * 0.5 * (1.5 - a), 'rgba(255,90,95,0.35)');
+    ctx.globalAlpha = 1;
+  }
+
+  // Tinta: traços acabats i traç actual
+  m.strokes.forEach((st, i) => {
+    let to = 0;
+    if (i < G.stroke || (G.done)) to = st.len; else if (i === G.stroke) to = G.s;
+    if (i > G.stroke && !G.done) return;
+    if (st.kind === 'dot') { if (i < G.stroke || G.done) dotAt(st.X[0], st.Y[0], Math.max(5, u * 44), lvColor); return; }
+    if (to > 0) strokeRange(st, 0, to, lvColor, G.ink);
+  });
+
+  // Marcador d'inici / punta del llapis
+  if (!G.done) {
+    const st = cur();
+    const p = pointAt(st, G.s);
+    if (G.drawing) {
+      dotAt(p[0], p[1], G.ink * 0.95, '#fff');
+      dotAt(p[0], p[1], G.ink * 0.7, lvColor);
+    } else {
+      const hint = G.hintT > 0 && now - G.hintT < 600 ? 1 + 0.5 * Math.sin((now - G.hintT) / 600 * Math.PI) : 1;
+      const r = Math.max(14, G.tol * 0.55) * (1 + 0.12 * Math.sin(now / 220)) * hint;
+      ctx.beginPath(); ctx.arc(p[0], p[1], r * 1.5, 0, Math.PI * 2); ctx.fillStyle = 'rgba(47,191,113,0.18)'; ctx.fill();
+      dotAt(p[0], p[1], r, '#2FBF71');
+      dotAt(p[0], p[1], r * 0.4, '#fff');
+      if (st.kind !== 'dot') {
+        const q = pointAt(st, Math.min(st.len, G.s + Math.max(r * 2.6, u * 93)));
+        const ang = Math.atan2(q[1] - p[1], q[0] - p[0]);
+        drawArrow(p[0] + Math.cos(ang) * r * 2.1, p[1] + Math.sin(ang) * r * 2.1, ang, r * 0.75, '#2FBF71');
+      }
+      // Demostració del recorregut si el nen dubta
+      if (now - G.idleSince > 2500 && st.kind !== 'dot') {
+        const [a, b] = st.kind === 'main' ? letterRange() : [0, st.len];
+        const dur = Math.max(1200, (b - G.s) * 4);
+        const ph = ((now - G.idleSince - 2500) % (dur + 500)) / dur;
+        if (ph <= 1) {
+          const t = G.s + (b - G.s) * ph;
+          const g = pointAt(st, t);
+          ctx.globalAlpha = 0.55;
+          strokeRange(st, G.s, t, lvColor, G.ink * 0.5);
+          dotAt(g[0], g[1], G.ink * 0.8, lvColor);
+          ctx.globalAlpha = 1;
+        }
+      }
+    }
+  }
+
+  // Confeti
+  G.confetti = G.confetti.filter(c => c.life > 0);
+  for (const c of G.confetti) {
+    c.vy += 0.25; c.x += c.vx; c.y += c.vy; c.rot += c.vr; c.life--;
+    ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(c.rot);
+    ctx.fillStyle = c.color; ctx.globalAlpha = Math.min(1, c.life / 30);
+    ctx.fillRect(-c.s / 2, -c.s / 4, c.s, c.s / 2); ctx.restore();
+  }
+  ctx.globalAlpha = 1;
+}
+requestAnimationFrame(render);
+
+/* =====================================================================
+   8. RECOMPENSES, AVISOS I MENÚ
+   ===================================================================== */
+let toastTimer = 0;
+function showToast(msg) {
+  toast.textContent = msg; toast.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => toast.classList.remove('show'), 1600);
+}
+
+function burst() {
+  const cols = LV_COLORS.concat(['#FFD166']);
+  for (let i = 0; i < 120; i++) {
+    G.confetti.push({ x: G.W / 2 + (Math.random() - 0.5) * G.W * 0.5, y: G.H * 0.45, vx: (Math.random() - 0.5) * 16,
+      vy: -Math.random() * 16 - 4, rot: Math.random() * 6, vr: (Math.random() - 0.5) * 0.4,
+      s: 10 + Math.random() * 12, color: cols[i % cols.length], life: 90 + Math.random() * 50 });
+  }
+}
+
+function starsFor(errors) { return errors === 0 ? 3 : errors <= 2 ? 2 : 1; }
+function starsHTML(n) { return '<div class="stars">' + [1, 2, 3].map(i => i <= n ? '⭐' : '<span class="off">⭐</span>').join('') + '</div>'; }
+
+let advanceTimer = 0;
+function wordDone() {
+  G.done = true;
+  const w = G.model.word, st = starsFor(G.errors);
+  save.best[w] = Math.max(save.best[w] || 0, st); persist();
+  renderDots();
+  burst();
+  void pic.offsetWidth; pic.classList.add('bounce');
+  const msgs = ['Molt bé!', 'Fantàstic!', 'Genial!', 'Ho has fet!', 'Bravo!'];
+  showToast(msgs[Math.floor(Math.random() * msgs.length)] + '  ' + '⭐'.repeat(st));
+  clearTimeout(advanceTimer);
+  advanceTimer = setTimeout(() => { if (G.done && !$('#game').classList.contains('hidden') && $('#modal').classList.contains('hidden')) nextWord(); }, 2200);
+}
+
+function modal(html, buttons) {
+  const box = $('#modal-box');
+  box.innerHTML = html;
+  const row = document.createElement('div'); row.className = 'row';
+  for (const [label, fn, alt] of buttons) {
+    const b = document.createElement('button'); b.className = 'big-btn' + (alt ? ' alt' : '');
+    b.textContent = label; b.onclick = () => { closeModal(); fn(); };
+    row.appendChild(b);
+  }
+  box.appendChild(row);
+  $('#modal').classList.remove('hidden');
+}
+function closeModal() { $('#modal').classList.add('hidden'); }
+
+function levelUp(nl) {
+  const prev = G.lv;
+  const total = LEVELS[prev].words.reduce((a, [w]) => a + (save.best[w] || 0), 0);
+  modal(`<div class="modal-emo">${LEVELS[nl].words[0][1]}</div>
+    <h2>Nivell ${prev + 1} superat!</h2>
+    <p>Has aconseguit ${total} ⭐</p>
+    <p>Ara ve el <b style="color:${LV_COLORS[nl]}">nivell ${nl + 1}</b>: paraules de ${LEVELS[nl].sub}.</p>`,
+    [['Som-hi!', () => loadWord(nl, 0)], ['Menú', showMenu, true]]);
+}
+function finishAll() {
+  modal(`<div class="modal-emo">🏆</div><h2>Ho has aconseguit!</h2><p>Has escrit totes les paraules en lletra lligada.</p>`,
+    [['Menú', showMenu]]);
+}
+
+function showGame(lv, wi) {
+  $('#menu').classList.add('hidden'); $('#game').classList.remove('hidden');
+  loadWord(lv, wi);
+}
+function showMenu() {
+  clearTimeout(advanceTimer);
+  $('#game').classList.add('hidden'); $('#menu').classList.remove('hidden');
+  buildMenu();
+}
+
+function buildMenu() {
+  const box = $('#levels'); box.innerHTML = '';
+  LEVELS.forEach((L, i) => {
+    const c = document.createElement('button'); c.className = 'lv-card';
+    const prog = L.words.map(([w]) => `<i style="${save.best[w] ? 'background:' + LV_COLORS[i] : ''}"></i>`).join('');
+    c.innerHTML = `<div class="lv-num" style="background:${LV_COLORS[i]}">${i + 1}</div>
+      <div class="lv-name">Nivell ${i + 1}</div><div class="lv-sub">${L.sub}</div>
+      <div class="lv-emo">${L.words.slice(0, 3).map(w => w[1]).join('')}</div><div class="lv-prog">${prog}</div>`;
+    c.onclick = () => {
+      const first = L.words.findIndex(([w]) => !save.best[w]);
+      showGame(i, first < 0 ? 0 : first);
+    };
+    box.appendChild(c);
+  });
+  document.querySelectorAll('#diff button').forEach(b => b.classList.toggle('on', b.dataset.d === save.diff));
+  drawTitle();
+}
+
+function drawTitle() {
+  const c = $('#title-cv'), r = c.getBoundingClientRect();
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  c.width = Math.round(r.width * dpr); c.height = Math.round(r.height * dpr);
+  const x = c.getContext('2d'); x.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const words = ['lletra', 'lligada'].map(wordModel);
+  const gap = 250;
+  const totalW = words.reduce((a, m) => a + (m.maxX - m.minX), 0) + gap;
+  const u = Math.min((r.width * 0.95) / totalW, r.height / (V_TOP - V_BOT));
+  let ox = (r.width - totalW * u) / 2;
+  const oy = (r.height - (V_TOP - V_BOT) * u) / 2 + V_TOP * u;
+  x.lineCap = 'round'; x.lineJoin = 'round';
+  words.forEach((m, wi) => {
+    const col = wi ? '#9B5DE5' : '#FF6B6B';
+    m.strokes.forEach(st => {
+      layoutStroke(st, u, ox - m.minX * u, oy);
+      if (st.kind === 'dot') { x.beginPath(); x.arc(st.X[0], st.Y[0], u * 44, 0, 7); x.fillStyle = col; x.fill(); return; }
+      x.beginPath(); tracePath(x, st, 0, st.len); x.strokeStyle = col; x.lineWidth = Math.max(3, u * STROKE_W); x.stroke();
+    });
+    ox += (m.maxX - m.minX + gap) * u;
+  });
+}
+
+/* Botons */
+$('#btn-home').onclick = showMenu;
+$('#btn-redo').onclick = () => loadWord(G.lv, G.wi);
+$('#btn-next').onclick = () => { clearTimeout(advanceTimer); nextWord(); };
+$('#btn-prev').onclick = () => { clearTimeout(advanceTimer); prevWord(); };
+$('#btn-continue').onclick = () => {
+  const p = save.pos || { lv: 0, i: 0 };
+  const lv = Math.min(Math.max(0, p.lv | 0), LEVELS.length - 1);
+  showGame(lv, Math.min(Math.max(0, p.i | 0), LEVELS[lv].words.length - 1));
+};
+document.querySelectorAll('#diff button').forEach(b => b.onclick = () => { save.diff = b.dataset.d; persist(); buildMenu(); });
+$('#btn-reset').onclick = () => {
+  modal('<h2>Esborrar el progrés?</h2><p>Es perdran totes les estrelles guardades en aquest dispositiu.</p>',
+    [['Sí, esborra', () => { save.best = {}; save.pos = { lv: 0, i: 0 }; persist(); buildMenu(); }], ['No', () => {}, true]]);
+};
+
+window.addEventListener('resize', () => { if (!$('#game').classList.contains('hidden')) resize(); else drawTitle(); });
+document.addEventListener('contextmenu', e => e.preventDefault());
+
+// Accés per a proves
+window.LletraLligada = { LEVELS, GL, wordModel, layoutStroke, G, loadWord, showGame };
+
+buildMenu();
+})();
+</script>
+</body>
+</html>
