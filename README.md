@@ -38,6 +38,8 @@ Entre totes les paraules hi surten:
 ## Opcions per al docent
 
 - **Selector de nivell:** tots els nivells estan oberts des del principi.
+- **Pantalla:** *Ordinador (22")*, *Tauleta (10,5")* o *Pissarra digital (75")*. El joc calcula la mida física de la lletra a partir de les polzades. A la pissarra, cada lletra ocupa aproximadament una mà, perquè la resta de la classe la pugui llegir des del seu lloc.
+- **Mida:** ajust del 50% al 150% (100% és la mida recomanada per a cada pantalla). Afecta la paraula, la imatge i els botons. Es pot canviar des del menú o dins del joc amb el botó de configuració.
 - **Amplada del camí:** *Ample*, *Normal* o *Estret*, per ajustar la dificultat.
 - **Navegació:** botons per passar a la paraula anterior o següent, tornar a començar la paraula i saltar a qualsevol paraula del nivell tocant els punts de la barra superior.
 - **Progrés:** les estrelles es guarden al mateix dispositiu (al navegador) i es poden esborrar des del menú. No es recull cap dada personal.
